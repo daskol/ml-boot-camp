@@ -52,7 +52,8 @@ class Client:
 
         return res.cookies.get('sessionid')
 
-    def submit(self, task_id: int, solution: Iterable, comment: str=None):
+    def submit(self, task_id: int, solution: Iterable, comment: str=None,
+               filename: str=None):
         """Funcdtion submit adds new solution to a task. In this implimentation
         we assume that solution is iterable which should be serialized to a
         column of floating points. Also, user could provide a comment to the
@@ -61,6 +62,7 @@ class Client:
         :param task_id: Task identifier which could be found in page URI.
         :param solution: Iterable of integers which marshals to single column.
         :param comment: Comment on a solution.
+        :param filename: What filename use in submition.
         """
         url = self.URL.format(endpoint='/round/%s/tasks/' % task_id)
         res = self.session.get(url)
@@ -76,7 +78,9 @@ class Client:
         data = dict(csrfmiddlewaretoken=self._extract_csrf_token(res.text),
                     comment=comment,
                     task=self._extract_task_id(res.text))
-        files = dict(file=('solution.csv', stream, 'text/csv; charset=utf-8'))
+        filename = filename or 'solution.csv'
+        files = dict(file=(filename, stream, 'text/csv; charset=utf-8'))
+
         url = self.URL.format(endpoint='/round/%d/solution/add/' % task_id)
         res = self.session.post(url, data=data, files=files)
 
