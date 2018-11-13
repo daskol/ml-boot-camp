@@ -28,12 +28,27 @@ class Client:
     def __init__(self, session: Session=None):
         self.session = session or Session()
 
+    def history(self, task_id: int):
+        """This function requests submition history for a given task.
+
+        :param task_id: Task identifier which could be found in page URI.
+        :return: JSON object containing submition history.
+        """
+        url = self.URL.format(endpoint='/round/%d/my-history/' % task_id)
+        res = self.session.get(url)
+
+        if not res.ok:
+            message = 'Failed to get submition history for task #%d.' % task_id
+            raise RuntimeError(message)
+
+        return res.json()
+
     def login(self, email: str, password: str):
         """Function login signs in with email and password. It is needed to set
         sessionid cookie.
 
         :param email: User email.
-        :param email: User password.
+        :param password: User password.
         :return: Value of sessionid cookie.
         """
         url = self.URL.format(endpoint='/login/')
