@@ -1,6 +1,6 @@
-# ML Boot Camp
+# ML Bootcamp API
 
-*HTML API to ML Boot Camp competition platform*
+*HTML API to ML Bootcamp competition platform*
 
 ## Overview
 
