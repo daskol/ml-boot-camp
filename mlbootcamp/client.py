@@ -2,6 +2,7 @@
 #   filename: client.py
 
 from io import BytesIO
+from os import getenv
 from typing import Iterable
 
 from bs4 import BeautifulSoup
@@ -23,10 +24,11 @@ class Client:
 
     URL = 'https://mlbootcamp.ru{endpoint}'
 
-    __slot__ = ['session']
+    __slot__ = ['session', 'session_id']
 
-    def __init__(self, session: Session=None):
+    def __init__(self, session: Session=None, session_id: str=None):
         self.session = session or Session()
+        self.session_id = session_id or self._load_session_id()
 
     def history(self, task_id: int):
         """This function requests submition history for a given task.
@@ -133,3 +135,10 @@ class Client:
             raise RuntimeError('There is tag with data-task attribute.')
 
         return int(buttons[0].get('data-task'))
+
+    def _load_session_id(self) -> str:
+        confdir = getenv('XDG_CONFIG_HOME', '~/.config')
+        confdir = join(confdir, 'ml-bootcamp')
+
+        with open(join(confdir, 'session')) as fin:
+            self.session_id = fin.read().strip()
