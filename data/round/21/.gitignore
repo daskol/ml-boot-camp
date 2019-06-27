@@ -1,3 +1,3 @@
-/test_data.csv
-/train_answers.csv
-/train_data.csv
+/test_data.parquet
+/train_ans.parquet
+/train_data.parquet

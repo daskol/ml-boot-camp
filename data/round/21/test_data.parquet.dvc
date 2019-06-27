@@ -1,0 +1,8 @@
+md5: 941274de7e4486ef0dfd65cfd27900f2
+wdir: .
+outs:
+- md5: 30c354399f96ed0d302ee90a55400030
+  path: test_data.parquet
+  cache: true
+  metric: false
+  persist: false

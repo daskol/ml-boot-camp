@@ -1,0 +1,8 @@
+md5: 2229a13a91074faf292110d694b37c7b
+wdir: .
+outs:
+- md5: 5a5d91c5bae9e65c612e5c5542075df9
+  path: train_ans.parquet
+  cache: true
+  metric: false
+  persist: false
