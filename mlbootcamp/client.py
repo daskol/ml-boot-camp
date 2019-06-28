@@ -1,9 +1,9 @@
 #   encoding: utf8
 #   filename: client.py
 
-from io import BytesIO
-from os import getenv
-from typing import Iterable
+from os import getenv, makedirs
+from os.path import exists, join
+from typing.io import BinaryIO
 
 from bs4 import BeautifulSoup
 from requests import Session
@@ -26,9 +26,11 @@ class Client:
 
     __slot__ = ['session', 'session_id']
 
-    def __init__(self, session: Session=None, session_id: str=None):
-        self.session = session or Session()
+    def __init__(self, session: Session = None, session_id: str = None):
         self.session_id = session_id or self._load_session_id()
+
+        self.session = session or Session()
+        self.session.cookies['sessionid'] = self.session_id
 
     def history(self, task_id: int):
         """This function requests submition history for a given task.
@@ -45,7 +47,7 @@ class Client:
 
         return res.json()
 
-    def login(self, email: str, password: str):
+    def login(self, email: str, password: str, force=False) -> 'Client':
         """Function login signs in with email and password. It is needed to set
         sessionid cookie.
 
@@ -53,6 +55,11 @@ class Client:
         :param password: User password.
         :return: Value of sessionid cookie.
         """
+        # Do not login if there is a session id and login is not forced.
+        if not force and self.session_id:
+            return self
+
+        # Request login page in order to get XSRF token.
         url = self.URL.format(endpoint='/login/')
         res = self.session.get(url)
 
@@ -62,47 +69,50 @@ class Client:
         data = dict(csrfmiddlewaretoken=self._extract_csrf_token(res.text),
                     email=email,
                     password=password)
+
+        # Perform login request and save session id cookie.
         res = self.session.post(url, data=data)
 
         if not res.ok or not res.cookies.get('sessionid'):
-            return False
+            raise RuntimeError('There is no sessin id in cookies.')
 
-        return res.cookies.get('sessionid')
+        self.session_id = res.cookies.get('sessionid')
+        self._save_session_id()
+        return self
 
-    def submit(self, task_id: int, solution: Iterable, comment: str=None,
-               filename: str=None):
+    def submit(self, task_id: int, fileobj: BinaryIO, comment: str = None,
+               filename: str = None):
         """Funcdtion submit adds new solution to a task. In this implimentation
         we assume that solution is iterable which should be serialized to a
         column of floating points. Also, user could provide a comment to the
         solution.
 
         :param task_id: Task identifier which could be found in page URI.
-        :param solution: Iterable of integers which marshals to single column.
+        :param fileobj: File-like object which is posted to server as a file.
         :param comment: Comment on a solution.
         :param filename: What filename use in submition.
         """
+        # Request tasks page in order to get XSRF token.
         url = self.URL.format(endpoint='/round/%s/tasks/' % task_id)
         res = self.session.get(url)
 
         if not res.ok:
             raise RuntimeError('Request was failed.')
 
-        solution = '\n'.join(str(x) for x in solution) + '\n'
-        stream = BytesIO()
-        stream.write(solution.encode('utf8'))
-        stream.seek(0)
-
+        # Prepare parameters of submission.
         data = dict(csrfmiddlewaretoken=self._extract_csrf_token(res.text),
                     comment=comment,
                     task=self._extract_task_id(res.text))
         filename = filename or 'solution.csv'
-        files = dict(file=(filename, stream, 'text/csv; charset=utf-8'))
+        files = dict(file_remote=(filename, fileobj, 'text/csv; charset=utf-8'))
 
         url = self.URL.format(endpoint='/round/%d/solution/add/' % task_id)
         res = self.session.post(url, data=data, files=files)
 
         if not res.ok or res.json().get('status') == 'ERROR':
             raise RuntimeError('Failed submit solution for task %s.' % task_id)
+
+        return self
 
     def _extract_csrf_token(self, content: str) -> str:
         """This function helps to find and extract CSRF token from HTML body.
@@ -138,7 +148,20 @@ class Client:
 
     def _load_session_id(self) -> str:
         confdir = getenv('XDG_CONFIG_HOME', '~/.config')
-        confdir = join(confdir, 'ml-bootcamp')
+        confdir = join(confdir, 'mlbootcamp')
+        filename = join(confdir, 'session')
 
-        with open(join(confdir, 'session')) as fin:
-            self.session_id = fin.read().strip()
+        if exists(filename):
+            with open(filename) as fin:
+                return fin.read().strip()
+
+    def _save_session_id(self) -> str:
+        confdir = getenv('XDG_CONFIG_HOME', '~/.config')
+        confdir = join(confdir, 'mlbootcamp')
+
+        if not exists(confdir):
+            makedirs(confdir, exist_ok=True)
+
+        with open(join(confdir, 'session'), 'w') as fout:
+            fout.write(self.session_id)
+            fout.write('\n')
