@@ -1,0 +1,8 @@
+md5: e5985ecedc95b0dcc8c016b4d14ff0d4
+wdir: .
+outs:
+- md5: b4dc41537868ee8397b6225a6a5c6021
+  path: ymin.npz
+  cache: true
+  metric: false
+  persist: false

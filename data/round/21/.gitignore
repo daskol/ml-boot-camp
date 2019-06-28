@@ -1,3 +1,12 @@
 /test_data.parquet
 /train_ans.parquet
 /train_data.parquet
+/indices-dataset.npy
+/indices-submset.npy
+/ioum.npz
+/item-ids.npy
+/user-ids.npy
+/xmax.npz
+/xmin.npz
+/ymax.npz
+/ymin.npz

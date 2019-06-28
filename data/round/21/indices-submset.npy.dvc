@@ -1,0 +1,8 @@
+md5: 13b2fcc3d85802a4fcd7ba75354571ee
+wdir: .
+outs:
+- md5: 12170c1f5ad96ecdc3cc355ded3748e1
+  path: indices-submset.npy
+  cache: true
+  metric: false
+  persist: false

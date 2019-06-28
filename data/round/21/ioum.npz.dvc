@@ -1,0 +1,8 @@
+md5: def5c6220518322402dc552f3ac50b98
+wdir: .
+outs:
+- md5: fafbc863be7c375d2293a7029ceaae39
+  path: ioum.npz
+  cache: true
+  metric: false
+  persist: false

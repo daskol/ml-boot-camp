@@ -1,0 +1,8 @@
+md5: ec462426934c7ad7d968c6222a67167d
+wdir: .
+outs:
+- md5: c96d1a0cede031c37b63a26d1386cdb1
+  path: item-ids.npy
+  cache: true
+  metric: false
+  persist: false

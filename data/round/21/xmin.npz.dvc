@@ -1,0 +1,8 @@
+md5: 48c0f17af5ba8e9485cae69e5d8bcbbe
+wdir: .
+outs:
+- md5: e43873f1f1ee4133b6f91317852343f1
+  path: xmin.npz
+  cache: true
+  metric: false
+  persist: false

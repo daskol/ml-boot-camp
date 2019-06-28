@@ -1,0 +1,8 @@
+md5: b756cf0867626b625067bcb3fff49a21
+wdir: .
+outs:
+- md5: 2ae2ece8e94e3e211d50aee17bf051a2
+  path: indices-dataset.npy
+  cache: true
+  metric: false
+  persist: false

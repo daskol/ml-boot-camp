@@ -1,0 +1,8 @@
+md5: 6c29cc81c9d99a96df07eabe69708c96
+wdir: .
+outs:
+- md5: 7f1dd26b4e5ec00d1a2d65ff62b09f6d
+  path: ymax.npz
+  cache: true
+  metric: false
+  persist: false

@@ -1,0 +1,8 @@
+md5: 8ca910c6e418d484599fb2d5b8257449
+wdir: .
+outs:
+- md5: 44812bdd927867882364b7a1253732c8
+  path: user-ids.npy
+  cache: true
+  metric: false
+  persist: false

@@ -1,0 +1,8 @@
+md5: ac25be894751e7d83e6c44e6079296aa
+wdir: .
+outs:
+- md5: 8789dd1fe1ddf730e6807efc6aa96f16
+  path: xmax.npz
+  cache: true
+  metric: false
+  persist: false
