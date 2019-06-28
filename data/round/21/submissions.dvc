@@ -1,0 +1,8 @@
+md5: df91703a1bc740e6126769fab46cf91a
+wdir: .
+outs:
+- md5: 1ac2c8014daaf3e564b7b536d66eeba2.dir
+  path: submissions
+  cache: true
+  metric: false
+  persist: false
