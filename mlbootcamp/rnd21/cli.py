@@ -3,6 +3,7 @@
 
 import click
 import logging
+import numpy as np
 import pandas as pd
 
 from .baseline import BaselineRegressor
@@ -39,4 +40,31 @@ def baseline(train_data: str, train_target: str,
     test_y.to_csv(test_target, header=False, index=False)
 
     logging.info('save predictions to %s', test_target)
+    logging.info('done.')
+
+
+@main.command()
+@click.argument('src', type=click.Path(dir_okay=False, exists=True))
+@click.argument('dst', type=click.Path(dir_okay=False))
+def dropout(src: str, dst: str):
+    """Занулить половину координат исходного решения.
+
+    Данная команда случайно выбирает 314 прямоугольника и зануляет их. Это
+    сделано с тем, чтобы попробовать поспользоваться утечкой информации о части
+    набора данных, который используется для проверки решения.
+    """
+    logging.info('load submission from %s', src)
+    names = ['item_id', 'x_min', 'y_min', 'x_max', 'y_max']
+    frame = pd.read_csv(src, names=names)
+
+    logging.info('fabricate permutation without one exclusive element')
+    exclusive = frame[frame.item_id == 146].index.values[0]
+    indices = np.arange(len(frame) - 1)
+    indices[exclusive:] += 1
+    perm = np.random.permutation(indices)
+    half = perm[:len(frame) // 2 - 1]
+
+    logging.info('mutate submission and write to %s', dst)
+    frame.loc[half, names[1:]] = 0.0
+    frame.to_csv(dst, header=False, index=False)
     logging.info('done.')
