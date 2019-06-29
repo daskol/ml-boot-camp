@@ -47,6 +47,22 @@ class Client:
 
         return res.json()
 
+    def leaderboard(self, task_id: int):
+        """Function leaderboard requests HTML page with ratings for a specified
+        task and return tokenized content.
+
+        :param task_id: Identifier of task of interest.
+        :return: Preparsed content of HTML page.
+        """
+        url = self.URL.format(endpoint=f'/round/{task_id}/rating/')
+        res = self.session.get(url)
+
+        if not res.ok:
+            message = 'Failed to get leaderboard for task #%d.' % task_id
+            raise RuntimeError(message)
+
+        return BeautifulSoup(res.text, 'html.parser')
+
     def login(self, email: str, password: str, force=False) -> 'Client':
         """Function login signs in with email and password. It is needed to set
         sessionid cookie.
