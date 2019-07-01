@@ -85,10 +85,10 @@ def linear_correction(train_data: str, train_target: str,
 @click.argument('train-target', type=click.Path(exists=True, dir_okay=False))
 @click.argument('test-data', type=click.Path(exists=True, dir_okay=False))
 @click.argument('test-target', type=click.Path(exists=False, dir_okay=False))
-def linear_correction(avg_mode: str,
-                      train_data: str, train_target: str,
-                      test_data: str, test_target: str):
-    """Линейная регрессия для коррекции пользовательских разметок.
+def regression(avg_mode: str,
+               train_data: str, train_target: str,
+               test_data: str, test_target: str):
+    """Регрессия для предсказания координат Bounding Box в лоб.
     """
     def fabricate(**kwargs):
         return BoundingBoxRegressor(avg_mode=avg_mode, **kwargs)
