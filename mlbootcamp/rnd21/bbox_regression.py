@@ -106,9 +106,11 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
                              'done either before or after regression.')
 
         if regressor == 'sklearn':
-            self.reg = LinearRegression(normalize=True, n_jobs=n_jobs)
+            self.reg_common = LinearRegression(normalize=True, n_jobs=n_jobs)
+            self.reg_denoising = LinearRegression(normalize=True, n_jobs=n_jobs)
         elif regressor == 'pytorch':
-            self.reg = NNRegression()
+            self.reg_common = NNRegression()
+            self.reg_denoising = NNRegression()
         else:
             raise ValueError(f'Unknown type of regression model: {regressor}.')
 
@@ -130,28 +132,46 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
     def fit(self,
             X: pd.DataFrame,
             y: pd.DataFrame) -> 'BoundingBoxRegressor':
+        self._fit(self.reg_common, X, y)
+
         if self.denoising:
             X, y = self._filter_outliers(X, y)
+            self._fit(self.reg_denoising, X, y)
 
+        return self
+
+    def _fit(self, reg, X: pd.DataFrame, y: pd.DataFrame):
         if self.avg_mode == 'after':
-            joined = pd.merge(X, y, left_on='item_id', right_on='item_id')
+            Y = X.copy()
+            joined = pd.merge(Y, y, left_on='item_id', right_on='item_id')
             features = joined[joined.columns[2:6]].values
             targets = joined[joined.columns[6:]].values
         elif self.avg_mode == 'before':
             Y = X.copy() \
                 .drop('user_id', axis=1) \
                 .groupby('item_id') \
-                .aggregate(self.aggfuncs)
-            features = Y.values
-            targets = y.set_index('item_id').values
+                .aggregate(self.aggfuncs) \
+                .reset_index()
+            joined = pd.merge(Y, y, left_on='item_id', right_on='item_id')
+            features = joined[joined.columns[1:5]].values
+            targets = joined[joined.columns[5:]].values
 
-        self.reg.fit(features, targets)
-        return self
+        reg.fit(features, targets)
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        y = self._predict(self.reg_common, X)
+
         if self.denoising:
             X = self._filter_outliers(X)
+            z = self._predict(self.reg_denoising, X)
+            z = z.set_index('item_id')
+            y = y.set_index('item_id')
+            y.loc[z.index] = z
+            y = y.sort_index().reset_index()
 
+        return y
+
+    def _predict(self, reg, X: pd.DataFrame) -> pd.DataFrame:
         if self.avg_mode == 'after':
             Y = X.copy() \
                 .drop('user_id', axis=1) \
@@ -162,7 +182,7 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
                 .groupby('item_id') \
                 .aggregate(self.aggfuncs)
 
-        Y[['x_min', 'y_min', 'x_max', 'y_max']] = self.reg.predict(Y.values)
+        Y[['x_min', 'y_min', 'x_max', 'y_max']] = reg.predict(Y.values)
 
         if self.avg_mode == 'after':
             return Y \
@@ -175,9 +195,16 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
 
     def _filter_outliers(self, X: pd.DataFrame,
                          y: Optional[pd.DataFrame] = None):
+        X = X.copy()
         X = X.drop(X[(X.x_max - X.x_min) < self.denoising_level].index)
         X = X.drop(X[(X.y_max - X.y_min) < self.denoising_level].index)
+
         if y is None:
             return X
-        y = y.set_index('item_id').loc[X.item_id.unique()].reset_index()
+
+        y = y.set_index('item_id') \
+            .loc[X.item_id.unique()] \
+            .sort_index(ascending=False) \
+            .reset_index()
+
         return X, y

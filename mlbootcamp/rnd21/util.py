@@ -83,6 +83,9 @@ def evaluate(X: pd.DataFrame, y: pd.DataFrame, estimator, params=None,
             .fit(train_X, train_y) \
             .predict(test_X)
 
+        if pred_y.item_id.nunique() != test_y.item_id.nunique():
+            raise RuntimeError('Wrong number of predicted markups.')
+
         mious[i] = miou(test_y, pred_y)
 
     return mious.mean(), mious.std()
