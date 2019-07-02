@@ -82,6 +82,7 @@ def linear_correction(train_data: str, train_target: str,
               default='before',
               type=click.Choice(['after', 'before']),
               help='How to avarage user markups.')
+@click.option('--extend', default=True, is_flag=True)
 @click.option('--regressor',
               default='sklearn',
               type=click.Choice(['pytorch', 'sklearn']))
@@ -89,13 +90,14 @@ def linear_correction(train_data: str, train_target: str,
 @click.argument('train-target', type=click.Path(exists=True, dir_okay=False))
 @click.argument('test-data', type=click.Path(exists=True, dir_okay=False))
 @click.argument('test-target', type=click.Path(exists=False, dir_okay=False))
-def regression(avg_mode: str, regressor: str,
+def regression(avg_mode: str, extend: bool, regressor: str,
                train_data: str, train_target: str,
                test_data: str, test_target: str):
     """Регрессия для предсказания координат Bounding Box в лоб.
     """
     def fabricate(**kwargs):
         kwargs['avg_mode'] = avg_mode
+        kwargs['extend'] = extend
         kwargs['regressor'] = regressor
         return BoundingBoxRegressor(**kwargs)
 

@@ -77,11 +77,17 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
 
     :param avg_mode: Когда усреднять пользовательские разметки.
 
+    :param regressor: Use common Linear Regression or Neural Network with ELU.
+
+    :param extend: Aggregate markup to increase area or just calculate means by
+                   coordinates.
+
     :param n_jobs: Число поток для обучения линейного регрессора.
     """
 
     def __init__(self, avg_mode: str = 'before',
                  regressor: str = 'sklearn',
+                 extend: bool = True,
                  n_jobs: Optional[int] = None):
         super().__init__()
 
@@ -100,6 +106,19 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
         else:
             raise ValueError(f'Unknown type of regression model: {regressor}.')
 
+        self.aggfuncs = {}
+
+        if extend:
+            self.aggfuncs['x_min'] = np.min
+            self.aggfuncs['y_min'] = np.min
+            self.aggfuncs['x_max'] = np.max
+            self.aggfuncs['y_max'] = np.max
+        else:
+            self.aggfuncs['x_min'] = np.mean
+            self.aggfuncs['y_min'] = np.mean
+            self.aggfuncs['x_max'] = np.mean
+            self.aggfuncs['y_max'] = np.mean
+
     def fit(self,
             X: pd.DataFrame,
             y: pd.DataFrame) -> 'BoundingBoxRegressor':
@@ -111,7 +130,7 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
             Y = X.copy() \
                 .drop('user_id', axis=1) \
                 .groupby('item_id') \
-                .mean()
+                .aggregate(self.aggfuncs)
             features = Y.values
             targets = y.set_index('item_id').values
 
@@ -127,7 +146,7 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
             Y = X.copy() \
                 .drop('user_id', axis=1) \
                 .groupby('item_id') \
-                .mean()
+                .aggregate(self.aggfuncs)
 
         Y[['x_min', 'y_min', 'x_max', 'y_max']] = self.reg.predict(Y.values)
 
@@ -135,7 +154,7 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
             return Y \
                 .reset_index('item_id') \
                 .groupby('item_id') \
-                .mean() \
+                .aggregate(self.aggfuncs) \
                 .reset_index()
         elif self.avg_mode == 'before':
             return Y.reset_index()
