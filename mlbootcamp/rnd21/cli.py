@@ -5,6 +5,7 @@ import click
 import logging
 import numpy as np
 import pandas as pd
+import pyarrow as pa  # noqa
 
 from .baseline import BaselineRegressor
 from .linear_correction import LinearCorrectionRegressor
@@ -81,17 +82,22 @@ def linear_correction(train_data: str, train_target: str,
               default='before',
               type=click.Choice(['after', 'before']),
               help='How to avarage user markups.')
+@click.option('--regressor',
+              default='sklearn',
+              type=click.Choice(['pytorch', 'sklearn']))
 @click.argument('train-data', type=click.Path(exists=True, dir_okay=False))
 @click.argument('train-target', type=click.Path(exists=True, dir_okay=False))
 @click.argument('test-data', type=click.Path(exists=True, dir_okay=False))
 @click.argument('test-target', type=click.Path(exists=False, dir_okay=False))
-def regression(avg_mode: str,
+def regression(avg_mode: str, regressor: str,
                train_data: str, train_target: str,
                test_data: str, test_target: str):
     """Регрессия для предсказания координат Bounding Box в лоб.
     """
     def fabricate(**kwargs):
-        return BoundingBoxRegressor(avg_mode=avg_mode, **kwargs)
+        kwargs['avg_mode'] = avg_mode
+        kwargs['regressor'] = regressor
+        return BoundingBoxRegressor(**kwargs)
 
     logging.info('load train set and inference set')
 

@@ -1,15 +1,71 @@
 #   encoding: utf8
 #   filename: bbox_regression.py
 
+import logging
 import numpy as np
 import pandas as pd
+import torch as T
+import torch.utils.data
 
 from typing import Optional
 
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.linear_model import LinearRegression
 
-from .baseline import BaselineRegressor
+
+class NNRegression(T.nn.Module):
+
+    def __init__(self, noepoches: int = 512, nosamples: int = 256):
+        super().__init__()
+
+        if T.cuda.device_count():
+            self.device = T.device('gpu')
+        else:
+            self.device = T.device('cpu')
+
+        self.noepoches = noepoches
+        self.nosamples = nosamples
+        self.loss = T.nn.MSELoss(reduction='mean')
+        self.model = T.nn.Sequential(
+            T.nn.Linear(4, 4),
+            T.nn.ELU(),
+        ).to(self.device)
+
+    def forward(self, inputs):
+        return self.model(inputs)
+
+    def fit(self, X: np.ndarray, y: np.ndarray):
+        # Initial approximation.
+        reg = LinearRegression(copy_X=True).fit(X, y)
+        self.model[0].weight.data = T.tensor(reg.coef_, dtype=T.float)
+        self.model[0].bias.data = T.tensor(reg.intercept_, dtype=T.float)
+
+        # Use SGD in order to fit neural network.
+        opt = T.optim.Adam(self.parameters(), lr=1e-4)
+
+        tensor_X = T.tensor(X, dtype=T.float).to(self.device)
+        tensor_y = T.tensor(y, dtype=T.float).to(self.device)
+        dataset = T.utils.data.TensorDataset(tensor_X, tensor_y)
+        loader = T.utils.data.DataLoader(dataset,
+                                         batch_size=self.nosamples,
+                                         shuffle=True)
+
+        for e in range(self.noepoches):
+            for b, (features, targets) in enumerate(loader):
+                opt.zero_grad()
+                predictions = self(features)
+                criterion = self.loss(predictions, targets)
+                criterion.backward()
+                opt.step()
+
+            if e % 50 == 0:
+                logging.debug('%03d:%03d mse = %11.4f', e, b, criterion.item())
+
+        logging.debug('%03d:%03d mse = %11.4f', e, b, criterion.item())
+        return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        return self(T.tensor(X, dtype=T.float)).detach().numpy()
 
 
 class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
@@ -24,7 +80,9 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
     :param n_jobs: Число поток для обучения линейного регрессора.
     """
 
-    def __init__(self, avg_mode: str = 'before', n_jobs: Optional[int] = None):
+    def __init__(self, avg_mode: str = 'before',
+                 regressor: str = 'sklearn',
+                 n_jobs: Optional[int] = None):
         super().__init__()
 
         if avg_mode == 'before':
@@ -35,7 +93,12 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
             raise ValueError('Averaging of bounding box coordinates must be '
                              'done either before or after regression.')
 
-        self.reg = LinearRegression(normalize=True, n_jobs=n_jobs)
+        if regressor == 'sklearn':
+            self.reg = LinearRegression(normalize=True, n_jobs=n_jobs)
+        elif regressor == 'pytorch':
+            self.reg = NNRegression()
+        else:
+            raise ValueError(f'Unknown type of regression model: {regressor}.')
 
     def fit(self,
             X: pd.DataFrame,
@@ -44,13 +107,15 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
             joined = pd.merge(X, y, left_on='item_id', right_on='item_id')
             features = joined[joined.columns[2:6]].values
             targets = joined[joined.columns[6:]].values
-            self.reg.fit(features, targets)
         elif self.avg_mode == 'before':
             Y = X.copy() \
                 .drop('user_id', axis=1) \
                 .groupby('item_id') \
                 .mean()
-            self.reg.fit(Y.values, y.set_index('item_id').values)
+            features = Y.values
+            targets = y.set_index('item_id').values
+
+        self.reg.fit(features, targets)
         return self
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
