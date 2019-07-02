@@ -77,17 +77,23 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
 
     :param avg_mode: Когда усреднять пользовательские разметки.
 
-    :param regressor: Use common Linear Regression or Neural Network with ELU.
+    :param denoising: Apply heuristic algorithm in order to remove outliers.
+
+    :param denoising_level: Threshold value for side of bounding box.
 
     :param extend: Aggregate markup to increase area or just calculate means by
                    coordinates.
+
+    :param regressor: Use common Linear Regression or Neural Network with ELU.
 
     :param n_jobs: Число поток для обучения линейного регрессора.
     """
 
     def __init__(self, avg_mode: str = 'before',
-                 regressor: str = 'sklearn',
+                 denoising: bool = True,
+                 denoising_level: int = 10,
                  extend: bool = True,
+                 regressor: str = 'sklearn',
                  n_jobs: Optional[int] = None):
         super().__init__()
 
@@ -106,6 +112,8 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
         else:
             raise ValueError(f'Unknown type of regression model: {regressor}.')
 
+        self.denoising = denoising
+        self.denoising_level = denoising_level
         self.aggfuncs = {}
 
         if extend:
@@ -122,6 +130,9 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
     def fit(self,
             X: pd.DataFrame,
             y: pd.DataFrame) -> 'BoundingBoxRegressor':
+        if self.denoising:
+            X, y = self._filter_outliers(X, y)
+
         if self.avg_mode == 'after':
             joined = pd.merge(X, y, left_on='item_id', right_on='item_id')
             features = joined[joined.columns[2:6]].values
@@ -138,6 +149,9 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
         return self
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        if self.denoising:
+            X = self._filter_outliers(X)
+
         if self.avg_mode == 'after':
             Y = X.copy() \
                 .drop('user_id', axis=1) \
@@ -158,3 +172,12 @@ class BoundingBoxRegressor(BaseEstimator, RegressorMixin):
                 .reset_index()
         elif self.avg_mode == 'before':
             return Y.reset_index()
+
+    def _filter_outliers(self, X: pd.DataFrame,
+                         y: Optional[pd.DataFrame] = None):
+        X = X.drop(X[(X.x_max - X.x_min) < self.denoising_level].index)
+        X = X.drop(X[(X.y_max - X.y_min) < self.denoising_level].index)
+        if y is None:
+            return X
+        y = y.set_index('item_id').loc[X.item_id.unique()].reset_index()
+        return X, y
