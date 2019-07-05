@@ -1,0 +1,8 @@
+md5: 7958f818dd104b400b8ba94a21de20c1
+wdir: .
+outs:
+- md5: 0285fcee980b53ee4ede26bf46af4dbe.dir
+  path: bboxes
+  cache: true
+  metric: false
+  persist: false
